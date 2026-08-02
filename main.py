@@ -19,7 +19,7 @@ app = FastAPI(title="FastAPI + Neon JWT Auth")
 origins = [
     "http://localhost:3000",  # Typical React / Next.js default port
     "http://localhost:3001",  # Typical Vite default port
-    "http://127.0.0.1:5173",
+    "https://eventflow-frontend-tau.vercel.app"
 ]
 
 # 3. Add CORSMiddleware to your app
