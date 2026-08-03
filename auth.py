@@ -59,5 +59,4 @@ def get_current_user(
     user = db.query(User).filter(User.email == token_data.email).first()
     if user is None:
         raise credentials_exception
-
     return user
