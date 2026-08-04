@@ -1,3 +1,4 @@
+from http.client import HTTPResponse
 
 from auth import (
     create_access_token,
@@ -9,8 +10,8 @@ from database import Base, engine, get_db
 from fastapi import Depends, FastAPI, HTTPException, status
 # 1. Import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from models import User, Event
-from schemas import Token, UserCreate, UserResponse, LoginRequest, EventCreate, EventResponse
+from models import User, Event, Task
+from schemas import Token, UserCreate, UserResponse, LoginRequest, EventCreate, EventResponse, TaskResponse, TaskCreate
 from sqlalchemy.orm import Session
 
 # Create database tables automatically
@@ -60,7 +61,6 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return new_user
-
 
 @app.post("/login", response_model=Token)
 def login(
@@ -138,3 +138,45 @@ def delete_event(event_id: int, user_id: int, db: Session = Depends(get_db)):
         db.delete(event)
         db.commit()
     return {"message": f"Event with id {event_id} deleted"}
+
+@app.post("/tasks/create", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+    """Create a new task assigned to a user."""
+    # Verify the referenced user exists
+    user = db.query(User).filter(User.id == task.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {task.user_id} not found"
+        )
+
+    db_task = Task(**task.model_dump())
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+@app.get("/tasks/{user_id}", response_model=list[TaskResponse])
+def get_tasks(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    tasks = db.query(Task).filter(Task.user_id == user_id).all()
+    return tasks
+
+@app.delete("/tasks/{task_id}/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(task_id: int, user_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    if(user_id != task.user_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    else:
+        db.delete(task)
+        db.commit()
+    return {"message": f"Event with id {task_id} deleted"}
+
