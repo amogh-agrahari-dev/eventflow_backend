@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "user"
+    status: str = "on-duty"
 
 class EventCreate(BaseModel):
     title: str
@@ -86,6 +87,7 @@ class UserResponse(BaseModel):
     name: Optional[str]
     email: EmailStr
     role: str
+    status: str
 
     class Config:
         from_attributes = True
@@ -101,3 +103,28 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+# Passes schemas
+class PassBase(BaseModel):
+    event_id: int
+    user_id: int
+    status: str
+
+class PassCreate(PassBase):
+    pass
+
+class PassResponse(PassBase):
+    id: int
+    pass_uid: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class AttendenceBase(BaseModel):
+    status: str
+    event_id: int
+    user_id: int
+
+class AttendenceCreate(AttendenceBase):
+    pass
+class AttendenceResponse(AttendenceBase):
+    created_at: datetime

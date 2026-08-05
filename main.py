@@ -1,4 +1,7 @@
+import secrets
+import string
 from http.client import HTTPResponse
+from random import random
 
 from auth import (
     create_access_token,
@@ -10,13 +13,14 @@ from database import Base, engine, get_db
 from fastapi import Depends, FastAPI, HTTPException, status
 # 1. Import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from models import User, Event, Task
-from schemas import Token, UserCreate, UserResponse, LoginRequest, EventCreate, EventResponse, TaskResponse, TaskCreate
+from models import User, Event, Task, Pass, Attendence
+from schemas import Token, UserCreate, UserResponse, LoginRequest, EventCreate, EventResponse, TaskResponse, TaskCreate, \
+    PassCreate, PassResponse, AttendenceResponse, AttendenceCreate
 from sqlalchemy.orm import Session
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
-app = FastAPI(title="FastAPI + Neon JWT Auth")
+app = FastAPI(title="EventHub API")
 origins = [
     "http://localhost:3000",  # Typical React / Next.js default port
     "http://localhost:3001",  # Typical Vite default port
@@ -180,3 +184,97 @@ def delete_event(task_id: int, user_id: int, db: Session = Depends(get_db)):
         db.commit()
     return {"message": f"Event with id {task_id} deleted"}
 
+@app.post("/pass/create", status_code=status.HTTP_201_CREATED, response_model=PassResponse)
+def create_pass(pass1:PassCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == pass1.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    alphanumeric = string.ascii_letters + string.digits
+    secure_string = ''.join(secrets.choice(alphanumeric) for _ in range(12))
+    new_pass = Pass(
+        event_id=pass1.event_id,
+        user_id=pass1.user_id,
+        pass_uid=secure_string,
+    )
+
+    db.add(new_pass)
+    db.commit()
+    db.refresh(new_pass)
+    return new_pass
+
+@app.get("/passes/{user_id}", response_model=list[PassResponse])
+def get_pass(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    passes = db.query(Pass).filter(Pass.user_id == user_id).all()
+    return passes
+
+@app.put("/passes/{user_id}", response_model=PassResponse)
+def update_pass(user_id: int, pass1: PassCreate, db: Session = Depends(get_db)):
+    # Only the authenticated user may update their own pass
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    pass2 = db.query(Pass).filter(Pass.user_id == user_id).first()
+    if not pass2:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pass not found")
+
+    # Update only the status field
+    pass2.status = pass1.status
+
+    db.commit()
+    db.refresh(pass2)
+    return pass2
+
+@app.delete("/passes/{pass_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_pass(pass_id: int,user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    pass1 = db.query(Pass).filter(Pass.pass_id == pass_id).first()
+    if not pass1:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pass not found")
+    if user_id != pass1.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    else:
+        db.delete(pass1)
+        db.commit()
+        return {"message": "Pass deleted"}
+
+@app.post("/attendence/mark", response_model=AttendenceResponse)
+def mark_attendence(attendence:AttendenceCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == attendence.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    db_attendence = Attendence(**attendence.model_dump())
+    db.add(db_attendence)
+    db.commit()
+    return db_attendence
+
+@app.put("/users/{user_id}", response_model=UserResponse)
+def update_status_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    db_user.status = user.status
+    db.commit()
+    return db_user
