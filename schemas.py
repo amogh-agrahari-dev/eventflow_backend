@@ -21,6 +21,7 @@ class EventCreate(BaseModel):
     max_attendees: int = 100
     volunteers_required: int = 5
     organizer_id: int
+    banner_url: str
 
 class EventResponse(BaseModel):
     id: int
@@ -35,6 +36,7 @@ class EventResponse(BaseModel):
     max_attendees: int
     volunteers_required: int
     organizer_id: int
+    banner_url: str
     created_at: datetime
 
     # Instructs Pydantic to read from a SQLAlchemy ORM model

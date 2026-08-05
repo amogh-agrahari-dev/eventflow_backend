@@ -37,7 +37,7 @@ class Event(Base):
     format = Column(String, nullable=False)
     max_attendees = Column(Integer, default=100)
     volunteers_required = Column(Integer, default=5)
-
+    banner_url = Column(String, nullable=True)
     organizer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     organizer: Mapped["User"] = relationship("User", back_populates="events_organized")
 
