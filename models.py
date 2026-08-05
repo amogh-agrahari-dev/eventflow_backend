@@ -10,10 +10,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    role = Column(String, nullable=False)
+    status = Column(String, default="on-duty")
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    status = Column(String, default="on-duty")
+    # status = Column(String, default="on-duty")
     # Relationships
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     events_organized: Mapped[List["Event"]] = relationship("Event", back_populates="organizer")

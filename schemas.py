@@ -6,8 +6,8 @@ class UserCreate(BaseModel):
     name: Optional[str] = None
     email: EmailStr
     password: str
-    role: str = "user"
     status: str = "on-duty"
+    # status: str = "on-duty"
 
 class EventCreate(BaseModel):
     title: str
@@ -86,7 +86,6 @@ class UserResponse(BaseModel):
     id: int
     name: Optional[str]
     email: EmailStr
-    role: str
     status: str
 
     class Config:
