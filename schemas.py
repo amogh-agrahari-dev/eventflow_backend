@@ -23,6 +23,15 @@ class EventCreate(BaseModel):
     organizer_id: int
     banner_url: str
 
+
+class VolunteerUser(BaseModel):
+    id: int
+    name: str | None = None
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EventResponse(BaseModel):
     id: int
     title: str
@@ -35,9 +44,16 @@ class EventResponse(BaseModel):
     format: str
     max_attendees: int
     volunteers_required: int
+    banner_url: str | None = None  # Updated to Optional since it can be null in DB
     organizer_id: int
-    banner_url: str
+
+    # List of volunteers registered for the event
+    volunteers: list[VolunteerUser] = []
+
     created_at: datetime
+
+    # Enables automatic mapping from SQLAlchemy models (formerly orm_mode = True in Pydantic v1)
+    model_config = ConfigDict(from_attributes=True)
 
     # Instructs Pydantic to read from a SQLAlchemy ORM model
     model_config = ConfigDict(from_attributes=True)
@@ -49,11 +65,13 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     importance: str = "medium"
     location: Optional[str] = None
+    event_id: int | None = None
 
 
 class TaskCreate(TaskBase):
     """Schema for creating a task — requires user_id."""
     user_id: int
+    event_id: int | None = None
 
 
 class TaskUpdate(BaseModel):

@@ -2,6 +2,7 @@ import secrets
 import string
 from http.client import HTTPResponse
 from random import random
+from typing import List
 
 from auth import (
     create_access_token,
@@ -15,7 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from models import User, Event, Task, Pass, Attendence
 from schemas import Token, UserCreate, UserResponse, LoginRequest, EventCreate, EventResponse, TaskResponse, TaskCreate, \
-    PassCreate, PassResponse, AttendenceResponse, AttendenceCreate
+    PassCreate, PassResponse, AttendenceResponse, AttendenceCreate, VolunteerUser
 from sqlalchemy.orm import Session
 
 # Create database tables automatically
@@ -278,3 +279,64 @@ def update_status_user(user_id: int, user: UserCreate, db: Session = Depends(get
     db_user.status = user.status
     db.commit()
     return db_user
+
+@app.post("/{event_id}/volunteers/{user_id}", response_model=EventResponse)
+def register_volunteer(
+    event_id: int,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Event and User
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found"
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found"
+        )
+
+    # 2. Check if user is already registered as a volunteer
+    if user in event.volunteers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already registered as a volunteer for this event"
+        )
+
+    # 3. Check if volunteer capacity is reached
+    if len(event.volunteers) >= event.volunteers_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Volunteer limit reached for this event"
+        )
+
+    # 4. Add user to event volunteers relationship and commit
+    event.volunteers.append(user)
+    db.commit()
+    db.refresh(event)
+
+    return event
+
+
+@app.get("/{event_id}/volunteers", response_model=List[VolunteerUser])
+def get_event_volunteers(
+        event_id: int,
+db: Session = Depends(get_db)
+):
+    # 1. Fetch the event
+    event = db.query(Event).filter(Event.id == event_id).first()
+
+    # 2. Check if event exists
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id {event_id} not found"
+        )
+
+    # 3. Return the list of volunteers (SQLAlchemy automatically fetches the relationship)
+    return event.volunteers

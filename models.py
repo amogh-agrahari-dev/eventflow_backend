@@ -1,10 +1,16 @@
 from datetime import datetime, timezone
 from typing import List
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column,Table, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship, Mapped
 from database import Base
 
-
+event_volunteers = Table(
+    "event_volunteers",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True),
+    Column("registered_at", DateTime, default=lambda: datetime.now(timezone.utc))
+)
 class User(Base):
     __tablename__ = "users"
 
@@ -18,7 +24,11 @@ class User(Base):
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     events_organized: Mapped[List["Event"]] = relationship("Event", back_populates="organizer")
     passes: Mapped[List["Pass"]] = relationship("Pass", back_populates="user", cascade="all, delete-orphan")
-
+    volunteered_events: Mapped[List["Event"]] = relationship(
+        "Event",
+        secondary=event_volunteers,
+        back_populates="volunteers"
+    )
     attendence: Mapped[List["Attendence"]] = relationship("Attendence", back_populates="user", cascade="all, delete-orphan")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -43,7 +53,12 @@ class Event(Base):
 
     # Relationships
     passes: Mapped[List["Pass"]] = relationship("Pass", back_populates="event", cascade="all, delete-orphan")
-
+    tasks: Mapped[List["Task"]] = relationship("Task", back_populates="event", cascade="all, delete-orphan")
+    volunteers: Mapped[List["User"]] = relationship(
+        "User",
+        secondary=event_volunteers,
+        back_populates="volunteered_events"
+    )
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -59,7 +74,8 @@ class Task(Base):
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: Mapped["User"] = relationship("User", back_populates="tasks")
-
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    event: Mapped["Event"] = relationship("Event", back_populates="tasks")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
