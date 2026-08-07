@@ -4,6 +4,8 @@ from http.client import HTTPResponse
 from random import random
 from typing import List
 
+from pydantic import BaseModel
+
 from auth import (
     create_access_token,
     get_current_user,
@@ -179,9 +181,39 @@ def get_tasks(user_id: int, db: Session = Depends(get_db)):
     tasks = db.query(Task).filter(Task.user_id == user_id).all()
     return tasks
 
+@app.get("/tasks/{user_id}/{event_id}", response_model=List[TaskResponse])
+def get_user_event_tasks(
+    user_id: int,
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    # 1. Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with ID {user_id} not found"
+        )
+
+    # 2. Verify event exists
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with ID {event_id} not found"
+        )
+
+    # 3. Fetch tasks matching both user_id and event_id in a single query
+    tasks = db.query(Task).filter(
+        Task.user_id == user_id,
+        Task.event_id == event_id
+    ).all()
+
+    return tasks
+
 @app.get("/tasks/{event_id}", response_model=list[TaskResponse])
 def get_event_tasks(event_id: int, db: Session = Depends(get_db)):
-    event = db.query(User).filter(Event.id == event_id).first()
+    event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -234,26 +266,27 @@ def get_pass(user_id: int, db: Session = Depends(get_db)):
     passes = db.query(Pass).filter(Pass.user_id == user_id).all()
     return passes
 
-@app.put("/passes/{user_id}", response_model=PassResponse)
-def update_pass(user_id: int, pass1: PassCreate, db: Session = Depends(get_db)):
-    # Only the authenticated user may update their own pass
+class PassStatusUpdate(BaseModel):
+    status: str
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
+@app.patch("/passes/{pass_uid}", response_model=PassResponse)
+def update_pass_status(
+    pass_uid: str,
+    pass_update: PassStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    db_pass = db.query(Pass).filter(Pass.pass_uid == pass_uid).first()
+    if not db_pass:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="Pass not found"
         )
-    pass2 = db.query(Pass).filter(Pass.user_id == user_id).first()
-    if not pass2:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pass not found")
 
-    # Update only the status field
-    pass2.status = pass1.status
+    db_pass.status = pass_update.status
 
     db.commit()
-    db.refresh(pass2)
-    return pass2
+    db.refresh(db_pass)
+    return db_pass
 
 @app.delete("/passes/{pass_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_pass(pass_id: int,user_id: int, db: Session = Depends(get_db)):
