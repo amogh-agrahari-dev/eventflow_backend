@@ -28,6 +28,7 @@ class VolunteerUser(BaseModel):
     id: int
     name: str | None = None
     email: str
+    status: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -49,7 +50,7 @@ class EventResponse(BaseModel):
 
     # List of volunteers registered for the event
     volunteers: list[VolunteerUser] = []
-
+    organizer: UserResponse
     created_at: datetime
 
     # Enables automatic mapping from SQLAlchemy models (formerly orm_mode = True in Pydantic v1)
@@ -88,6 +89,8 @@ class TaskResponse(TaskBase):
     id: int
     user_id: int
     created_at: datetime
+    user: UserResponse
+    event: EventResponse
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -135,6 +138,7 @@ class PassCreate(PassBase):
 class PassResponse(PassBase):
     id: int
     pass_uid: str
+    event: EventResponse
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -142,6 +146,7 @@ class AttendenceBase(BaseModel):
     status: str
     event_id: int
     user_id: int
+    user: UserResponse
 
 class AttendenceCreate(AttendenceBase):
     pass

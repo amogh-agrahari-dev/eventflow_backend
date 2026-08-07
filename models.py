@@ -9,6 +9,7 @@ event_volunteers = Table(
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True),
+    Column("status", String, default="on-duty"),
     Column("registered_at", DateTime, default=lambda: datetime.now(timezone.utc))
 )
 class User(Base):

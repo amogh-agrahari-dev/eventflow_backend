@@ -130,6 +130,14 @@ def get_user_events(user_id: int, db: Session = Depends(get_db)):
     events = db.query(Event).filter(Event.organizer_id == user_id).all()
     return events
 
+@app.get("/event/{event_id}", response_model=EventResponse)
+def get_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    return event
 @app.delete("/events/{event_id}/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(event_id: int, user_id: int, db: Session = Depends(get_db)):
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -169,6 +177,16 @@ def get_tasks(user_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
         )
     tasks = db.query(Task).filter(Task.user_id == user_id).all()
+    return tasks
+
+@app.get("/tasks/{event_id}", response_model=list[TaskResponse])
+def get_event_tasks(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(User).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    tasks = db.query(Task).filter(Task.event_id == event_id).all()
     return tasks
 
 @app.delete("/tasks/{task_id}/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -267,6 +285,16 @@ def mark_attendence(attendence:AttendenceCreate, db: Session = Depends(get_db)):
     db.add(db_attendence)
     db.commit()
     return db_attendence
+
+@app.get("/attendence/{event_id}", response_model=list[AttendenceResponse])
+def get_attendence(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    attendeces = db.query(Attendence).filter(Attendence.event_id == event_id).all()
+    return attendeces
 
 @app.put("/users/{user_id}", response_model=UserResponse)
 def update_status_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
