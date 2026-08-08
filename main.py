@@ -269,6 +269,19 @@ def get_pass(user_id: int, db: Session = Depends(get_db)):
 class PassStatusUpdate(BaseModel):
     status: str
 
+@app.get("/passes/event/{event_id}", response_model=list[PassResponse])
+def get_passes(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    passes = db.query(Pass).filter(Pass.event_id == event_id).all()
+    return passes
+
+class PassStatusUpdate(BaseModel):
+    status: str
+
 @app.patch("/passes/{pass_uid}", response_model=PassResponse)
 def update_pass_status(
     pass_uid: str,
